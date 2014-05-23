@@ -25,7 +25,8 @@ struct MessageHandler {
   MsgCallBack callback;
 };
 
-HWND MakeWindow(const wchar_t* title, ULONG style, HMENU menu, const SIZE& size, MessageHandler* handlers) {
+HWND MakeWindow(
+    const wchar_t* title, ULONG style, HMENU menu, const SIZE& size, MessageHandler* handlers) {
   WNDCLASSEXW wcex = {sizeof(wcex)};
   wcex.hCursor = ::LoadCursorW(NULL, IDC_ARROW);
   wcex.hInstance = ThisModule();
@@ -94,9 +95,9 @@ int __stdcall wWinMain(HINSTANCE module, HINSTANCE, wchar_t* cc, int) {
     {-1, NULL}
   };
 
-  SIZE size = {200, 200};
-  HWND main_window = VerifyNot(
-    MakeWindow(L"main/by/cpu", WS_OVERLAPPEDWINDOW | WS_VISIBLE, NULL, size, msg_handlers), HWND(NULL));
+  SIZE size = {300, 200};
+  HWND main_window = VerifyNot(MakeWindow(
+      L"file cleaner", WS_OVERLAPPEDWINDOW | WS_VISIBLE, NULL, size, msg_handlers), HWND(NULL));
 
   MSG msg;
   while (VerifyNot(::GetMessageW(&msg, NULL, 0, 0), -1)) {
