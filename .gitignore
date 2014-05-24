@@ -1,4 +1,6 @@
+src/gen
 src/catalog
+src/plex_log.txt
 
 #################
 ## Visual Studio

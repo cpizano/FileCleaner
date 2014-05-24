@@ -1,12 +1,24 @@
-// FileCleaner.cpp 
-//
-#include <Windows.h>
-#include "Resource.h"
+// FileCleaner.cpp
+#include <windows.h>
+#include "..\Resource.h"
 
 extern "C" IMAGE_DOS_HEADER __ImageBase;
 
 HINSTANCE ThisModule() {
   return reinterpret_cast<HINSTANCE>(&__ImageBase);
+}
+
+plx::File OpenConfigFile() {
+  std::unique_ptr<wchar_t[]> sp(new wchar_t[300]);
+  ::GetModuleFileNameW(ThisModule(), sp.get(), 256);
+  auto path = plx::FilePath(sp.get()).parent().append(L"config.json");
+  plx::FileParams fparams = plx::FileParams::Read_SharedRead();
+  return plx::File::Create(path, fparams, plx::FileSecurity());
+}
+
+void CleanFiles(HWND window) {
+  plx::File cfile = OpenConfigFile();
+
 }
 
 template <typename T, typename U>
@@ -92,12 +104,21 @@ int __stdcall wWinMain(HINSTANCE module, HINSTANCE, wchar_t* cc, int) {
       return 0;
     }},
 
+    { WM_TIMER, [] (HWND window, WPARAM, LPARAM) -> LRESULT {
+      CleanFiles(window);
+      return 0;
+    }},
+
     {-1, NULL}
   };
 
   SIZE size = {300, 200};
   HWND main_window = VerifyNot(MakeWindow(
       L"file cleaner", WS_OVERLAPPEDWINDOW | WS_VISIBLE, NULL, size, msg_handlers), HWND(NULL));
+
+  ::SetTimer(main_window, 1007, 1000, nullptr);
+
+  CleanFiles(nullptr);
 
   MSG msg;
   while (VerifyNot(::GetMessageW(&msg, NULL, 0, 0), -1)) {

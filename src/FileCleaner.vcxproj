@@ -107,7 +107,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>$(ProjectDir)plex.exe --generate --out-dir=gen FileCleaner.cpp</Command>
+      <Command>del gen\FileCleaner.cpp &amp;&amp; $(ProjectDir)plex.exe --generate --out-dir=gen FileCleaner.cpp</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -150,7 +150,10 @@
     <ClInclude Include="Resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FileCleaner.cpp" />
+    <ClCompile Include="FileCleaner.cpp">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+    </ClCompile>
+    <ClCompile Include="gen\FileCleaner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="FileCleaner.rc" />
