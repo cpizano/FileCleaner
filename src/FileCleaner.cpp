@@ -1,4 +1,6 @@
 // FileCleaner.cpp
+#define NOMINMAX
+
 #include <windows.h>
 #include "..\Resource.h"
 
@@ -16,9 +18,48 @@ plx::File OpenConfigFile() {
   return plx::File::Create(path, fparams, plx::FileSecurity());
 }
 
-void CleanFiles(HWND window) {
-  plx::File cfile = OpenConfigFile();
+plx::JsonValue ReadConfig(plx::File& cfile) {
+  if (!cfile.is_valid())
+    return false;
+  auto size = cfile.size_in_bytes();
+  if (size < 10)
+    return false;
+  plx::Range<char> r(0, size);
+  auto mem = plx::HeapRange(r);
+  if (cfile.read(r, 0) != size)
+    return false;
+  plx::Range<const char> json(r);
+  return plx::ParseJsonValue(json);
+}
 
+plx::File OpenDirectory(plx::JsonValue& config) {
+  auto path_ns = config["path_to_clean"].get_string();
+  plx::FilePath path(std::wstring(path_ns.begin(), path_ns.end()));
+
+  auto dir_par = plx::FileParams::Directory_ShareAll();
+  return plx::File::Create(path, dir_par, plx::FileSecurity());
+}
+
+bool EnumAndClean(plx::File& dir) {
+  if (!dir.is_valid())
+    return false;
+  if (dir.status() != (plx::File::directory | plx::File::existing))
+    return false;
+  // Do real work here.
+  return true;
+}
+
+bool CleanFiles(HWND window) {
+  plx::File cfile = OpenConfigFile();
+  auto config = ReadConfig(cfile);
+
+  auto dir = OpenDirectory(config);
+  if (!EnumAndClean(dir))
+    return false;
+
+  int timer_ms = 1000 * 60 * plx::To<int>(config["check_frequency"].get_int64());
+  ::SetTimer(window, 1007, timer_ms , nullptr);
+  return true;
 }
 
 template <typename T, typename U>
@@ -104,7 +145,8 @@ int __stdcall wWinMain(HINSTANCE module, HINSTANCE, wchar_t* cc, int) {
       return 0;
     }},
 
-    { WM_TIMER, [] (HWND window, WPARAM, LPARAM) -> LRESULT {
+    { WM_TIMER, [] (HWND window, WPARAM wp, LPARAM) -> LRESULT {
+      ::KillTimer(window, wp);
       CleanFiles(window);
       return 0;
     }},
@@ -116,9 +158,7 @@ int __stdcall wWinMain(HINSTANCE module, HINSTANCE, wchar_t* cc, int) {
   HWND main_window = VerifyNot(MakeWindow(
       L"file cleaner", WS_OVERLAPPEDWINDOW | WS_VISIBLE, NULL, size, msg_handlers), HWND(NULL));
 
-  ::SetTimer(main_window, 1007, 1000, nullptr);
-
-  CleanFiles(nullptr);
+  CleanFiles(main_window);
 
   MSG msg;
   while (VerifyNot(::GetMessageW(&msg, NULL, 0, 0), -1)) {
