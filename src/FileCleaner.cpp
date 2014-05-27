@@ -32,32 +32,60 @@ plx::JsonValue ReadConfig(plx::File& cfile) {
   return plx::ParseJsonValue(json);
 }
 
-plx::File OpenDirectory(plx::JsonValue& config) {
-  auto path_ns = config["path_to_clean"].get_string();
-  plx::FilePath path(std::wstring(path_ns.begin(), path_ns.end()));
-
+plx::File OpenDirectory(plx::FilePath& path) {
   auto dir_par = plx::FileParams::Directory_ShareAll();
   return plx::File::Create(path, dir_par, plx::FileSecurity());
 }
 
-bool EnumAndClean(plx::File& dir) {
-  if (!dir.is_valid())
-    return false;
-  if (dir.status() != (plx::File::directory | plx::File::existing))
-    return false;
-  // Do real work here.
+bool EnumAndClean(plx::FilesInfo& files, const plx::FilePath& dirname, int64_t keep_count) {
+  std::map<long long, plx::Range<wchar_t>> file_map;
+  for (files.first(); !files.done(); files.next()) {
+    if (files.is_directory())
+      continue;
+    file_map[files.creation_ns1600()] = files.file_name();
+  }
+  // Figure out how many to delete.
+  auto delete_count = file_map.size() - keep_count;
+  if (delete_count <= 1)
+    return true;
+
+  for (auto& it : file_map) {
+    std::wstring name(it.second.start(), it.second.end());
+    auto ffn = dirname.append(name);
+    if (!::DeleteFile(ffn.raw())) {
+      auto gle = ::GetLastError();
+      continue;
+    }
+
+    // success, adjust the count.
+    --delete_count;
+    if (!delete_count)
+      break;
+  }
+
   return true;
 }
 
 bool CleanFiles(HWND window) {
-  plx::File cfile = OpenConfigFile();
-  auto config = ReadConfig(cfile);
+  auto config = ReadConfig(OpenConfigFile());
 
-  auto dir = OpenDirectory(config);
-  if (!EnumAndClean(dir))
+  auto keep_count = config["keep_count"].get_int64();
+  if (keep_count <= 0)
     return false;
 
-  int timer_ms = 1000 * 60 * plx::To<int>(config["check_frequency"].get_int64());
+  auto path_ns = config["path_to_clean"].get_string();
+  if (path_ns.empty())
+    return false;
+
+  plx::FilePath path(std::wstring(path_ns.begin(), path_ns.end()));
+  auto dir = OpenDirectory(path);
+  if (dir.status() != (plx::File::directory | plx::File::existing))
+    return false;
+
+  if (!EnumAndClean(plx::FilesInfo::FromDir(dir), path, keep_count))
+    return false;
+
+  int timer_ms = 1000 * plx::To<int>(config["check_frequency"].get_int64());
   ::SetTimer(window, 1007, timer_ms , nullptr);
   return true;
 }
