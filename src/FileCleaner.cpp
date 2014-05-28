@@ -45,7 +45,7 @@ bool EnumAndClean(plx::FilesInfo& files, const plx::FilePath& dirname, int64_t k
     file_map[files.creation_ns1600()] = files.file_name();
   }
   // Figure out how many to delete.
-  auto delete_count = file_map.size() - keep_count;
+  auto delete_count = plx::To<int64_t>(file_map.size()) - keep_count;
   if (delete_count <= 1)
     return true;
 
